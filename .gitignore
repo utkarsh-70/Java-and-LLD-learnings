@@ -1,0 +1,11 @@
+cat > .gitignore <<'EOF'
+# Java / Maven ignores
+*.class
+*.jar
+*.war
+target/
+.vscode/
+.idea/
+*.iml
+.DS_Store
+EOF
