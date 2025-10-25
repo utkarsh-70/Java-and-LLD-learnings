@@ -1,0 +1,165 @@
+# 🅿️ Smart Parking Lot System (Low-Level Design)
+
+## 📘 Overview
+
+This project is a **Low-Level Design (LLD)** implementation of a **Smart Parking Lot Management System**.  
+It simulates the backend logic for handling **vehicle entry and exit**, **parking spot allocation**, and **parking fee calculation** using an **object-oriented design approach** in Java.
+
+The goal is to model a scalable and maintainable architecture that can later be extended into a complete Spring Boot–based backend system.
+
+---
+
+## 🎯 Problem Statement
+
+Design a system for a **multi-floor urban parking lot** that efficiently manages:
+- Automatic **parking spot allocation** based on vehicle type and availability.
+- Recording **vehicle entry and exit times**.
+- Calculating **parking fees** using a defined pricing strategy.
+- Maintaining **real-time updates** of parking spot availability.
+
+---
+
+## 🧩 Functional Requirements
+
+1. **Parking Spot Allocation:** Automatically assign an available parking spot to a vehicle when it enters.  
+2. **Check-In and Check-Out:** Record entry and exit times of vehicles.  
+3. **Parking Fee Calculation:** Compute fees based on duration and vehicle type.  
+4. **Real-Time Updates:** Update availability of spots as vehicles enter or leave.  
+
+---
+
+## 🧱 Entities and Their Responsibilities
+
+### 1. **Vehicle**
+Represents a vehicle entering or exiting the parking lot.
+
+| Attribute | Type | Description |
+|------------|------|-------------|
+| `vehicleNumber` | `String` | Unique identifier (e.g., license plate). |
+| `vehicleType` | `VehicleType` | Type of vehicle — `CAR`, `BIKE`, or `BUS`. |
+
+**Behavior:**
+- Provides access to vehicle details used for spot allocation and fee calculation.
+
+---
+
+### 2. **VehicleType (Enum)**
+Enumerates possible vehicle types the parking lot supports.
+
+| Enum Values |
+|--------------|
+| `CAR`, `BIKE`, `BUS` |
+
+**Usage:**
+- Used to determine the type of parking spot required.
+- Used in fee calculation strategy.
+
+---
+
+### 3. **ParkingSpot**
+Represents a single parking space.
+
+| Attribute | Type | Description |
+|------------|------|-------------|
+| `spotId` | `String` | Unique ID for the spot. |
+| `spotType` | `VehicleType` | Type of vehicle this spot can accommodate. |
+| `isAvailable` | `boolean` | Indicates if the spot is free or occupied. |
+
+**Behavior:**
+- `isAvailable()`: Returns whether the spot is free.  
+- `occupy()`: Marks the spot as occupied.  
+- `release()`: Frees the spot once the vehicle leaves.  
+
+---
+
+### 4. **ParkingTicket**
+Represents a ticket generated for every parked vehicle.
+
+| Attribute | Type | Description |
+|------------|------|-------------|
+| `ticketId` | `String` | Unique ticket identifier. |
+| `vehicle` | `Vehicle` | Vehicle associated with the ticket. |
+| `spot` | `ParkingSpot` | The spot assigned to the vehicle. |
+| `entryTime` | `LocalDateTime` | Timestamp of entry. |
+| `exitTime` | `LocalDateTime` | Timestamp of exit. |
+| `fee` | `double` | Calculated parking fee. |
+
+**Behavior:**
+- `getTicketId()`, `getVehicle()`, `getSpot()`: Access ticket details.  
+- `getEntryTime()` / `getExitTime()`: Retrieve timestamps.  
+- `getFee()` / `setFee()`: Access or update parking fee.
+
+---
+
+### 5. **ParkingFloor**
+Represents one floor of the parking lot.
+
+| Attribute | Type | Description |
+|------------|------|-------------|
+| `spots` | `List<ParkingSpot>` | Collection of parking spots available on this floor. |
+
+**Behavior:**
+- Manages the availability and allocation of spots per floor.
+
+---
+
+### 6. **ParkingLotService**
+The main service that orchestrates parking operations.
+
+| Responsibility |
+|----------------|
+| Handles vehicle check-in and check-out. |
+| Allocates parking spots based on vehicle type and availability. |
+| Generates and manages parking tickets. |
+| Calculates parking fee at exit using the `PaymentStrategy`. |
+
+**Behavior (Key Methods):**
+- `parkVehicle(Vehicle vehicle)`: Allocates a parking spot and creates a ticket.  
+- `unparkVehicle(String ticketId)`: Marks the vehicle as exited, frees the spot, and calculates fee.  
+
+---
+
+### 7. **PaymentStrategy (Interface)**
+Defines the interface for all payment strategies.
+
+| Method | Description |
+|---------|-------------|
+| `double calculateFee(ParkingTicket ticket)` | Calculates the parking fee based on ticket details. |
+
+**Purpose:**
+- Allows different strategies for fee calculation to be plugged in without modifying the main service.
+
+---
+
+### 8. **StandardPaymentStrategy (Implementation)**
+A simple implementation of the `PaymentStrategy` interface.
+
+**Logic:**
+- Calculates parking duration using `Duration.between(entryTime, exitTime)`.
+- Ensures a minimum billing of **1 hour**.
+- Applies hardcoded hourly rates based on vehicle type:
+  - **CAR** → ₹20/hour  
+  - **BIKE** → ₹10/hour  
+  - **BUS** → ₹50/hour  
+
+**Behavior:**
+```java
+@Override
+public double calculateFee(ParkingTicket ticket) {
+    long hours = Math.max(Duration.between(ticket.getEntryTime(), ticket.getExitTime()).toHours(), 1);
+    switch (ticket.getVehicle().getVehicleType()) {
+        case CAR: return hours * 20;
+        case BIKE: return hours * 10;
+        case BUS: return hours * 50;
+        default: throw new IllegalArgumentException("Unknown vehicle type");
+    }
+}
+
+
+| Relationship                           | Description                                  |
+| -------------------------------------- | -------------------------------------------- |
+| `ParkingLotService → ParkingFloor`     | Uses floors to manage spots.                 |
+| `ParkingFloor → ParkingSpot`           | Each floor contains multiple spots.          |
+| `ParkingTicket → Vehicle, ParkingSpot` | Associates a vehicle with its assigned spot. |
+| `PaymentStrategy → ParkingTicket`      | Fee is calculated based on ticket details.   |
+| `StandardPaymentStrategy`              | Implements the `PaymentStrategy` interface.  |
